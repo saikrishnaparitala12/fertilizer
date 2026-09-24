@@ -4,35 +4,42 @@ import type { CartItem, Customer, PaymentMethod } from '../types';
 interface BillingState {
   customer: Customer | null;
   cart: CartItem[];
-  discount: number;
-  adjustment: number;
-  tax: number;
-  customFinalTotal: number | undefined;
+  discount: string;
+  adjustment: string;
+  tax: string;
+  customFinalTotal: string;
   paymentMethod: PaymentMethod;
   notes: string;
   setCustomer: (customer: Customer | null) => void;
   addToCart: (item: CartItem) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   removeFromCart: (productId: string) => void;
-  setDiscount: (v: number) => void;
-  setAdjustment: (v: number) => void;
-  setTax: (v: number) => void;
-  setCustomFinalTotal: (v: number | undefined) => void;
+  setDiscount: (v: string) => void;
+  setAdjustment: (v: string) => void;
+  setTax: (v: string) => void;
+  setCustomFinalTotal: (v: string) => void;
   setPaymentMethod: (v: PaymentMethod) => void;
   setNotes: (v: string) => void;
   clearBill: () => void;
   subtotal: () => number;
   calculatedTotal: () => number;
   finalTotal: () => number;
+  // numeric getters for API submission
+  discountNum: () => number;
+  adjustmentNum: () => number;
+  taxNum: () => number;
+  customFinalTotalNum: () => number | undefined;
 }
+
+const toNum = (v: string) => parseFloat(v) || 0;
 
 export const useBillingStore = create<BillingState>((set, get) => ({
   customer: null,
   cart: [],
-  discount: 0,
-  adjustment: 0,
-  tax: 0,
-  customFinalTotal: undefined,
+  discount: '',
+  adjustment: '',
+  tax: '',
+  customFinalTotal: '',
   paymentMethod: 'CASH' as PaymentMethod,
   notes: '',
 
@@ -50,18 +57,26 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       : state.cart.map(c => c.product.id === productId ? { ...c, quantity } : c),
   })),
   removeFromCart: (productId) => set((state) => ({ cart: state.cart.filter(c => c.product.id !== productId) })),
-  setDiscount: (discount) => set({ discount, customFinalTotal: undefined }),
-  setAdjustment: (adjustment) => set({ adjustment, customFinalTotal: undefined }),
-  setTax: (tax) => set({ tax, customFinalTotal: undefined }),
+  setDiscount: (discount) => set({ discount, customFinalTotal: '' }),
+  setAdjustment: (adjustment) => set({ adjustment, customFinalTotal: '' }),
+  setTax: (tax) => set({ tax, customFinalTotal: '' }),
   setCustomFinalTotal: (customFinalTotal) => set({ customFinalTotal }),
   setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
   setNotes: (notes) => set({ notes }),
-  clearBill: () => set({ customer: null, cart: [], discount: 0, adjustment: 0, tax: 0, customFinalTotal: undefined, notes: '' }),
+  clearBill: () => set({ customer: null, cart: [], discount: '', adjustment: '', tax: '', customFinalTotal: '', notes: '' }),
+
+  discountNum: () => toNum(get().discount),
+  adjustmentNum: () => toNum(get().adjustment),
+  taxNum: () => toNum(get().tax),
+  customFinalTotalNum: () => get().customFinalTotal !== '' ? toNum(get().customFinalTotal) : undefined,
 
   subtotal: () => get().cart.reduce((sum, item) => sum + item.product.selling_price * item.quantity, 0),
   calculatedTotal: () => {
-    const { discount, adjustment, tax } = get();
-    return get().subtotal() - discount + tax + adjustment;
+    const s = get();
+    return s.subtotal() - toNum(s.discount) + toNum(s.tax) + toNum(s.adjustment);
   },
-  finalTotal: () => get().customFinalTotal ?? get().calculatedTotal(),
+  finalTotal: () => {
+    const s = get();
+    return s.customFinalTotal !== '' ? toNum(s.customFinalTotal) : s.calculatedTotal();
+  },
 }));
