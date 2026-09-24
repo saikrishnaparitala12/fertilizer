@@ -1,0 +1,198 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { reportsApi } from '../api';
+import { formatCurrency, formatDate } from '../utils';
+import { PageLoader } from '../components/ui/Loading';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+export default function ReportsPage() {
+  const [tab, setTab] = useState<'sales' | 'inventory' | 'products'>('sales');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  const { data: salesData, isLoading: salesLoading } = useQuery({
+    queryKey: ['report-sales', from, to],
+    queryFn: () => reportsApi.sales({ from, to }).then(r => r.data.data),
+    enabled: tab === 'sales',
+  });
+
+  const { data: inventoryData, isLoading: invLoading } = useQuery({
+    queryKey: ['report-inventory'],
+    queryFn: () => reportsApi.inventory().then(r => r.data.data),
+    enabled: tab === 'inventory',
+  });
+
+  const { data: productData, isLoading: prodLoading } = useQuery({
+    queryKey: ['report-products', from, to],
+    queryFn: () => reportsApi.productSales({ from, to }).then(r => r.data.data),
+    enabled: tab === 'products',
+  });
+
+  const tabs = [
+    { key: 'sales', label: 'Sales Report' },
+    { key: 'inventory', label: 'Inventory Report' },
+    { key: 'products', label: 'Product Sales' },
+  ] as const;
+
+  return (
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.key ? 'bg-white shadow text-indigo-600' : 'text-gray-600 hover:text-gray-900'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Date filters */}
+      {tab !== 'inventory' && (
+        <div className="flex gap-3 items-center">
+          <div>
+            <label className="label">From</label>
+            <input type="date" className="input w-40" value={from} onChange={e => setFrom(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">To</label>
+            <input type="date" className="input w-40" value={to} onChange={e => setTo(e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {/* Sales Report */}
+      {tab === 'sales' && (
+        salesLoading ? <PageLoader /> : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="card p-5 text-center">
+                <p className="text-3xl font-bold text-indigo-600">{salesData?.total_orders || 0}</p>
+                <p className="text-sm text-gray-500 mt-1">Total Orders</p>
+              </div>
+              <div className="card p-5 text-center">
+                <p className="text-3xl font-bold text-emerald-600">{formatCurrency(salesData?.total_sales || 0)}</p>
+                <p className="text-sm text-gray-500 mt-1">Total Sales</p>
+              </div>
+              <div className="card p-5 text-center">
+                <p className="text-3xl font-bold text-gray-900">{formatCurrency(salesData?.avg_bill_value || 0)}</p>
+                <p className="text-sm text-gray-500 mt-1">Avg. Bill Value</p>
+              </div>
+            </div>
+            <div className="card">
+              <div className="px-6 py-4 border-b border-gray-200 font-semibold">Recent Invoices</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      {['Invoice', 'Customer', 'Total', 'Payment', 'Date'].map(h => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {(salesData?.invoices || []).slice(0, 20).map((inv: any) => (
+                      <tr key={inv.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-indigo-600">{inv.invoice_number}</td>
+                        <td className="px-4 py-3">{inv.customers?.name}</td>
+                        <td className="px-4 py-3 font-semibold">{formatCurrency(inv.final_total)}</td>
+                        <td className="px-4 py-3"><span className="badge-blue">{inv.payment_method}</span></td>
+                        <td className="px-4 py-3 text-gray-500">{formatDate(inv.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )
+      )}
+
+      {/* Inventory Report */}
+      {tab === 'inventory' && (
+        invLoading ? <PageLoader /> : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="card p-5 text-center">
+                <p className="text-3xl font-bold text-indigo-600">{inventoryData?.total_products || 0}</p>
+                <p className="text-sm text-gray-500 mt-1">Total Products</p>
+              </div>
+              <div className="card p-5 text-center">
+                <p className="text-3xl font-bold text-emerald-600">{formatCurrency(inventoryData?.total_stock_value || 0)}</p>
+                <p className="text-sm text-gray-500 mt-1">Stock Value</p>
+              </div>
+              <div className="card p-5 text-center">
+                <p className="text-3xl font-bold text-red-600">{inventoryData?.out_of_stock?.length || 0}</p>
+                <p className="text-sm text-gray-500 mt-1">Out of Stock</p>
+              </div>
+            </div>
+            {(inventoryData?.low_stock || []).length > 0 && (
+              <div className="card">
+                <div className="px-6 py-4 border-b border-gray-200 font-semibold text-amber-600">⚠ Low Stock Products</div>
+                <div className="divide-y divide-gray-50">
+                  {inventoryData.low_stock.map((p: any) => (
+                    <div key={p.id} className="px-6 py-3 flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">{p.name}</p>
+                        <p className="text-xs text-gray-400">{p.sku}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-amber-600">{p.current_stock} {p.unit}</p>
+                        <p className="text-xs text-gray-400">Min: {p.min_stock_threshold}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      )}
+
+      {/* Product Sales */}
+      {tab === 'products' && (
+        prodLoading ? <PageLoader /> : (
+          <div className="space-y-6">
+            <div className="card p-5">
+              <h3 className="font-semibold mb-4">Revenue by Product</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={(productData as any[] || []).slice(0, 10)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="product_name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `₹${v}`} />
+                  <Tooltip formatter={(v: unknown) => formatCurrency(Number(v))} />
+                  <Bar dataKey="total_revenue" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="card">
+              <div className="px-6 py-4 border-b border-gray-200 font-semibold">Product Sales Breakdown</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      {['Product', 'SKU', 'Qty Sold', 'Revenue'].map(h => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {(productData as any[] || []).map((p: any) => (
+                      <tr key={p.product_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium">{p.product_name}</td>
+                        <td className="px-4 py-3 text-gray-500">{p.product_sku}</td>
+                        <td className="px-4 py-3 font-semibold">{p.total_quantity}</td>
+                        <td className="px-4 py-3 font-bold text-indigo-600">{formatCurrency(p.total_revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
