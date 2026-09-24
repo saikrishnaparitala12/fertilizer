@@ -1,6 +1,6 @@
 import api from './client';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string).replace(/\/+$/, '');
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 const BUCKET = (import.meta.env.VITE_SUPABASE_BUCKET as string) || 'products';
 
