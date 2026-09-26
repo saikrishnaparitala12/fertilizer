@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Table, Pagination } from '../../components/ui/Table';
 import { Modal, ConfirmDialog } from '../../components/ui/Modal';
-import { formatCurrency, formatDate, debounce } from '../../utils';
+import { formatCurrency, formatDate, debounce, getApiErrorMessage } from '../../utils';
 import type { Customer } from '../../types';
 import { Plus, Search, Edit, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -24,7 +24,7 @@ export default function CustomersPage() {
 
   const debouncedSet = useCallback(debounce((v: unknown) => { setDebouncedSearch(v as string); setPage(1); }, 300), []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['customers', page, debouncedSearch],
     queryFn: () => customersApi.list({ page, limit: 20, search: debouncedSearch }).then(r => r.data),
   });
@@ -32,7 +32,7 @@ export default function CustomersPage() {
   const saveMutation = useMutation({
     mutationFn: (d: typeof form) => editCustomer ? customersApi.update(editCustomer.id, d) : customersApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers'] }); setShowForm(false); toast.success(editCustomer ? 'Customer updated' : 'Customer created'); },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to save customer'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to save customer')),
   });
 
   const openEdit = (c: Customer) => { setEditCustomer(c); setForm({ name: c.name, phone: c.phone, email: c.email || '', address: c.address || '', gstin: c.gstin || '', notes: c.notes || '' }); setShowForm(true); };
@@ -81,6 +81,7 @@ export default function CustomersPage() {
               onChange={e => { setSearch(e.target.value); debouncedSet(e.target.value); }} />
           </div>
         </div>
+        {error && <div role="alert" className="m-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{getApiErrorMessage(error, 'Could not load customers')}</div>}
         <Table columns={columns} data={data?.data || []} keyField="id" loading={isLoading} emptyMessage="No customers found" />
         <Pagination page={page} total={data?.meta?.total || 0} limit={20} onChange={setPage} />
       </div>

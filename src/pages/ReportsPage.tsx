@@ -1,30 +1,32 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { reportsApi } from '../api';
-import { formatCurrency, formatDate } from '../utils';
+import { formatCurrency, formatDate, getApiErrorMessage } from '../utils';
 import { PageLoader } from '../components/ui/Loading';
+import { Button } from '../components/ui/Button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function ReportsPage() {
   const [tab, setTab] = useState<'sales' | 'inventory' | 'products'>('sales');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [appliedRange, setAppliedRange] = useState({ from: '', to: '' });
 
-  const { data: salesData, isLoading: salesLoading } = useQuery({
-    queryKey: ['report-sales', from, to],
-    queryFn: () => reportsApi.sales({ from, to }).then(r => r.data.data),
+  const { data: salesData, isLoading: salesLoading, error: salesError } = useQuery({
+    queryKey: ['report-sales', appliedRange.from, appliedRange.to],
+    queryFn: () => reportsApi.sales(Object.fromEntries(Object.entries(appliedRange).filter(([, value]) => value))).then(r => r.data.data),
     enabled: tab === 'sales',
   });
 
-  const { data: inventoryData, isLoading: invLoading } = useQuery({
+  const { data: inventoryData, isLoading: invLoading, error: inventoryError } = useQuery({
     queryKey: ['report-inventory'],
     queryFn: () => reportsApi.inventory().then(r => r.data.data),
     enabled: tab === 'inventory',
   });
 
-  const { data: productData, isLoading: prodLoading } = useQuery({
-    queryKey: ['report-products', from, to],
-    queryFn: () => reportsApi.productSales({ from, to }).then(r => r.data.data),
+  const { data: productData, isLoading: prodLoading, error: productError } = useQuery({
+    queryKey: ['report-products', appliedRange.from, appliedRange.to],
+    queryFn: () => reportsApi.productSales(Object.fromEntries(Object.entries(appliedRange).filter(([, value]) => value))).then(r => r.data.data),
     enabled: tab === 'products',
   });
 
@@ -50,16 +52,30 @@ export default function ReportsPage() {
 
       {/* Date filters */}
       {tab !== 'inventory' && (
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="label">From</label>
-            <input type="date" className="input w-40" value={from} onChange={e => setFrom(e.target.value)} />
+            <input type="date" className="input w-40" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} />
           </div>
           <div>
             <label className="label">To</label>
-            <input type="date" className="input w-40" value={to} onChange={e => setTo(e.target.value)} />
+            <input type="date" className="input w-40" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} />
           </div>
+          <Button onClick={() => setAppliedRange({ from, to })} disabled={Boolean(from && to && from > to)}>Apply filters</Button>
+          <Button variant="secondary" onClick={() => { setFrom(''); setTo(''); setAppliedRange({ from: '', to: '' }); }}>Clear</Button>
         </div>
+      )}
+
+      {(tab === 'sales' && salesError || tab === 'products' && productError) && (
+        <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {getApiErrorMessage(tab === 'sales' ? salesError : productError)}
+        </div>
+      )}
+      {tab === 'inventory' && inventoryError && (
+        <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{getApiErrorMessage(inventoryError)}</div>
+      )}
+      {(tab === 'sales' && salesData?.invoices?.length === 0 || tab === 'products' && (productData as any[] | undefined)?.length === 0) && (appliedRange.from || appliedRange.to) && !salesLoading && !prodLoading && (
+        <div className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">No sales matched the selected date range.</div>
       )}
 
       {/* Sales Report */}

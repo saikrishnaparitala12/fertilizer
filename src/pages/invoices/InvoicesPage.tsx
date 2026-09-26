@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { ConfirmDialog, Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { PaymentMethod } from '../../types';
+import { getApiErrorMessage } from '../../utils';
 import toast from 'react-hot-toast';
 
 export default function InvoicesPage() {
@@ -27,7 +28,7 @@ export default function InvoicesPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: string) => invoicesApi.cancel(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); setCancelInvoice(null); toast.success('Invoice cancelled'); },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to cancel'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to cancel invoice')),
   });
 
   const markPaidMutation = useMutation({
@@ -44,7 +45,7 @@ export default function InvoicesPage() {
       setPayInvoice(null);
       toast.success('Payment recorded');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to record payment'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to record payment')),
   });
 
   const columns = [

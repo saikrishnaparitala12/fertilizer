@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { Table, Pagination } from '../../components/ui/Table';
 import { Modal, ConfirmDialog } from '../../components/ui/Modal';
-import { formatCurrency, getStockBadgeClass, getStockLabel, debounce } from '../../utils';
+import { formatCurrency, getStockBadgeClass, getStockLabel, debounce, getApiErrorMessage } from '../../utils';
 import type { Product } from '../../types';
 import { ProductStatus, ProductUnit } from '../../types';
 import { Plus, Search, Edit, Trash2, TrendingUp, ImagePlus, X } from 'lucide-react';
@@ -23,6 +23,7 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ProductStatus | 'ALL'>(ProductStatus.ACTIVE);
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
@@ -38,9 +39,9 @@ export default function ProductsPage() {
 
   const debouncedSet = useCallback(debounce((v: unknown) => { setDebouncedSearch(v as string); setPage(1); }, 300), []);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['products', page, debouncedSearch],
-    queryFn: () => productsApi.list({ page, limit: 20, search: debouncedSearch }).then(r => r.data),
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['products', page, debouncedSearch, statusFilter],
+    queryFn: () => productsApi.list({ page, limit: 20, search: debouncedSearch, ...(statusFilter === 'ALL' ? {} : { status: statusFilter }) }).then(r => r.data),
   });
 
   const saveMutation = useMutation({
@@ -64,18 +65,19 @@ export default function ProductsPage() {
       return editProduct ? productsApi.update(editProduct.id, finalForm) : productsApi.create(finalForm);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setShowForm(false); toast.success(editProduct ? 'Product updated' : 'Product created'); },
-    onError: (err: any) => toast.error(err.response?.data?.message || err.message || 'Failed to save product'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to save product')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => productsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setDeleteProduct(null); toast.success('Product deactivated'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setDeleteProduct(null); toast.success('Product removed from active products'); },
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to deactivate product')),
   });
 
   const stockMutation = useMutation({
     mutationFn: () => productsApi.adjustStock({ product_id: stockProduct!.id, ...stockForm }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setShowStockModal(false); toast.success('Stock adjusted'); },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to adjust stock'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to adjust stock')),
   });
 
   const openEdit = (p: Product) => {
@@ -150,13 +152,16 @@ export default function ProductsPage() {
       </div>
 
       <div className="card">
-        <div className="p-4 border-b border-gray-200">
-          <div className="relative max-w-sm">
+        <div className="p-4 border-b border-gray-200 flex flex-wrap gap-3 items-end">
+          <div className="relative max-w-sm flex-1 min-w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input className="input pl-9" placeholder="Search products..." value={search}
               onChange={e => { setSearch(e.target.value); debouncedSet(e.target.value); }} />
           </div>
+          <Select label="Product status" value={statusFilter} onChange={e => { setStatusFilter(e.target.value as ProductStatus | 'ALL'); setPage(1); }}
+            options={[{ value: ProductStatus.ACTIVE, label: 'Active products' }, { value: ProductStatus.INACTIVE, label: 'Inactive products' }, { value: 'ALL', label: 'All products' }]} />
         </div>
+        {error && <div role="alert" className="m-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{getApiErrorMessage(error, 'Could not load products')}</div>}
         <Table columns={columns} data={data?.data || []} keyField="id" loading={isLoading} emptyMessage="No products found" />
         <Pagination page={page} total={data?.meta?.total || 0} limit={20} onChange={setPage} />
       </div>

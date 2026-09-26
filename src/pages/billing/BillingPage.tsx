@@ -4,7 +4,7 @@ import { productsApi, getProductImageUrl } from '../../api/products';
 import { customersApi } from '../../api/customers';
 import { invoicesApi } from '../../api/invoices';
 import { useBillingStore } from '../../stores/billing.store';
-import { formatCurrency, debounce } from '../../utils';
+import { formatCurrency, debounce, getApiErrorMessage } from '../../utils';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
@@ -41,7 +41,7 @@ export default function BillingPage() {
     queryFn: () => productsApi.list({ search: debouncedProductSearch, status: 'ACTIVE', limit: 50 }).then(r => r.data.data),
   });
 
-  const { data: customersData, isLoading: customersLoading } = useQuery({
+  const { data: customersData, isLoading: customersLoading, error: customersError } = useQuery({
     queryKey: ['customers-billing', debouncedCustomerSearch],
     queryFn: () => customersApi.list({ search: debouncedCustomerSearch, limit: 30 }).then(r => r.data.data),
     enabled: showCustomerPicker,
@@ -55,7 +55,7 @@ export default function BillingPage() {
       setShowCustomerPicker(false);
       toast.success('Customer created');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to create customer'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to create customer')),
   });
 
   const createInvoiceMutation = useMutation({
@@ -68,7 +68,7 @@ export default function BillingPage() {
       setMobileTab('products');
       toast.success('Invoice created successfully!');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to create invoice'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to create invoice')),
   });
 
   const selectCustomer = (c: Customer) => {
@@ -111,7 +111,9 @@ export default function BillingPage() {
   };
 
   const products = (productsData as Product[]) || [];
-  const customers = (customersData as any)?.data || (customersData as Customer[]) || [];
+  const customers = Array.isArray(customersData)
+    ? customersData as Customer[]
+    : Array.isArray((customersData as any)?.data) ? (customersData as any).data as Customer[] : [];
   const subtotal = store.subtotal();
   const calculatedTotal = store.calculatedTotal();
   const finalTotal = store.finalTotal();
@@ -136,6 +138,8 @@ export default function BillingPage() {
         <div className="max-h-72 overflow-y-auto divide-y divide-gray-100">
           {customersLoading ? (
             <div className="py-8 text-center text-gray-400 text-sm">Loading...</div>
+          ) : customersError ? (
+            <div role="alert" className="p-3 text-sm text-red-700 bg-red-50 rounded-md">{getApiErrorMessage(customersError, 'Could not load customers')}</div>
           ) : customers.length === 0 ? (
             <div className="py-8 text-center text-gray-400 text-sm">No customers found</div>
           ) : (
@@ -205,7 +209,7 @@ export default function BillingPage() {
                 <p className="font-medium text-gray-900 text-xs leading-tight line-clamp-2">{product.name}</p>
                 <div className="flex items-center justify-between mt-1">
                   <span className="font-bold text-indigo-600 text-sm">{formatCurrency(product.selling_price)}</span>
-                  <span className={`text-xs ${outOfStock ? 'text-red-500' : product.current_stock <= product.min_stock_threshold ? 'text-amber-500' : 'text-emerald-600'}`}>
+                  <span className={`text-xs ${outOfStock ? 'text-red-500' : product.current_stock < 10 ? 'text-amber-500' : 'text-emerald-600'}`}>
                     {outOfStock ? 'Out' : `${product.current_stock}`}
                   </span>
                 </div>
