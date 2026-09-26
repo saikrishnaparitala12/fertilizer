@@ -66,17 +66,21 @@ export default function ReportsPage() {
       {tab === 'sales' && (
         salesLoading ? <PageLoader /> : (
           <div className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
               <div className="card p-5 text-center">
-                <p className="text-3xl font-bold text-indigo-600">{salesData?.total_orders || 0}</p>
-                <p className="text-sm text-gray-500 mt-1">Total Orders</p>
+                <p className="text-2xl sm:text-3xl font-bold leading-tight text-indigo-600 tabular-nums [overflow-wrap:anywhere]">{salesData?.total_orders || 0}</p>
+                <p className="text-sm text-gray-500 mt-1">Paid Orders</p>
               </div>
               <div className="card p-5 text-center">
-                <p className="text-3xl font-bold text-emerald-600">{formatCurrency(salesData?.total_sales || 0)}</p>
-                <p className="text-sm text-gray-500 mt-1">Total Sales</p>
+                <p className="text-xl sm:text-2xl font-bold leading-tight text-emerald-600 tabular-nums [overflow-wrap:anywhere]">{formatCurrency(salesData?.total_sales || 0)}</p>
+                <p className="text-sm text-gray-500 mt-1">Paid Sales</p>
               </div>
               <div className="card p-5 text-center">
-                <p className="text-3xl font-bold text-gray-900">{formatCurrency(salesData?.avg_bill_value || 0)}</p>
+                <p className="text-xl sm:text-2xl font-bold leading-tight text-amber-600 tabular-nums [overflow-wrap:anywhere]">{formatCurrency(salesData?.outstanding_total || 0)}</p>
+                <p className="text-sm text-gray-500 mt-1">Outstanding · {salesData?.unpaid_orders || 0} bills</p>
+              </div>
+              <div className="card p-5 text-center">
+                <p className="text-xl sm:text-2xl font-bold leading-tight text-gray-900 tabular-nums [overflow-wrap:anywhere]">{formatCurrency(salesData?.avg_bill_value || 0)}</p>
                 <p className="text-sm text-gray-500 mt-1">Avg. Bill Value</p>
               </div>
             </div>
@@ -96,8 +100,8 @@ export default function ReportsPage() {
                       <tr key={inv.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium text-indigo-600">{inv.invoice_number}</td>
                         <td className="px-4 py-3">{inv.customers?.name}</td>
-                        <td className="px-4 py-3 font-semibold">{formatCurrency(inv.final_total)}</td>
-                        <td className="px-4 py-3"><span className="badge-blue">{inv.payment_method}</span></td>
+                        <td className="px-4 py-3 font-semibold tabular-nums whitespace-nowrap">{formatCurrency(inv.final_total)}</td>
+                        <td className="px-4 py-3"><span className={inv.status === 'UNPAID' ? 'badge-yellow' : 'badge-blue'}>{inv.status === 'UNPAID' ? 'Unpaid' : inv.payment_method}</span></td>
                         <td className="px-4 py-3 text-gray-500">{formatDate(inv.created_at)}</td>
                       </tr>
                     ))}
@@ -113,17 +117,17 @@ export default function ReportsPage() {
       {tab === 'inventory' && (
         invLoading ? <PageLoader /> : (
           <div className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="card p-5 text-center">
-                <p className="text-3xl font-bold text-indigo-600">{inventoryData?.total_products || 0}</p>
+                <p className="text-2xl sm:text-3xl font-bold leading-tight text-indigo-600 tabular-nums [overflow-wrap:anywhere]">{inventoryData?.total_products || 0}</p>
                 <p className="text-sm text-gray-500 mt-1">Total Products</p>
               </div>
               <div className="card p-5 text-center">
-                <p className="text-3xl font-bold text-emerald-600">{formatCurrency(inventoryData?.total_stock_value || 0)}</p>
+                <p className="text-xl sm:text-2xl font-bold leading-tight text-emerald-600 tabular-nums [overflow-wrap:anywhere]">{formatCurrency(inventoryData?.total_stock_value || 0)}</p>
                 <p className="text-sm text-gray-500 mt-1">Stock Value</p>
               </div>
               <div className="card p-5 text-center">
-                <p className="text-3xl font-bold text-red-600">{inventoryData?.out_of_stock?.length || 0}</p>
+                <p className="text-2xl sm:text-3xl font-bold leading-tight text-red-600 tabular-nums [overflow-wrap:anywhere]">{inventoryData?.out_of_stock?.length || 0}</p>
                 <p className="text-sm text-gray-500 mt-1">Out of Stock</p>
               </div>
             </div>
@@ -183,7 +187,7 @@ export default function ReportsPage() {
                         <td className="px-4 py-3 font-medium">{p.product_name}</td>
                         <td className="px-4 py-3 text-gray-500">{p.product_sku}</td>
                         <td className="px-4 py-3 font-semibold">{p.total_quantity}</td>
-                        <td className="px-4 py-3 font-bold text-indigo-600">{formatCurrency(p.total_revenue)}</td>
+                        <td className="px-4 py-3 font-bold text-indigo-600 tabular-nums whitespace-nowrap">{formatCurrency(p.total_revenue)}</td>
                       </tr>
                     ))}
                   </tbody>

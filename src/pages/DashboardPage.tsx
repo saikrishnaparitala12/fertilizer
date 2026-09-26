@@ -50,26 +50,26 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-0.5">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <Link to="/billing" className="btn-primary">
+        <Link to="/billing" className="btn-primary w-full sm:w-auto">
           <ShoppingCart className="w-4 h-4" />
           New Bill
         </Link>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 min-w-0">
         <StatCard title="Today's Revenue" value={formatCurrency(summary?.today_revenue || 0)} icon={<TrendingUp className="w-5 h-5 text-indigo-600" />} color="bg-indigo-50" />
         <StatCard title="Today's Orders" value={summary?.today_orders || 0} icon={<ShoppingCart className="w-5 h-5 text-emerald-600" />} color="bg-emerald-50" />
         <StatCard title="Total Revenue" value={formatCurrency(summary?.total_revenue || 0)} icon={<DollarSign className="w-5 h-5 text-purple-600" />} color="bg-purple-50" />
         <StatCard title="Total Customers" value={summary?.total_customers || 0} icon={<Users className="w-5 h-5 text-blue-600" />} color="bg-blue-50" />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 min-w-0">
         <StatCard title="Total Products" value={summary?.total_products || 0} icon={<Package className="w-5 h-5 text-gray-600" />} color="bg-gray-100" />
         <StatCard title="Low Stock" value={summary?.low_stock_products || 0} icon={<AlertTriangle className="w-5 h-5 text-amber-600" />} color="bg-amber-50" subtitle="Needs restock" />
         <StatCard title="Out of Stock" value={summary?.out_of_stock_products || 0} icon={<XCircle className="w-5 h-5 text-red-600" />} color="bg-red-50" subtitle="Unavailable" />
@@ -132,7 +132,7 @@ export default function DashboardPage() {
                     <Link to={`/invoices/${sale.id}`} className="text-indigo-600 hover:underline font-medium">{sale.invoice_number}</Link>
                   </td>
                   <td className="px-4 py-3 text-gray-700">{sale.customers?.name}</td>
-                  <td className="px-4 py-3 font-semibold text-gray-900">{formatCurrency(sale.final_total)}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-900 tabular-nums whitespace-nowrap">{formatCurrency(sale.final_total)}</td>
                   <td className="px-4 py-3">
                     <span className="badge-blue">{sale.payment_method}</span>
                   </td>

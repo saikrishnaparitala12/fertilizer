@@ -48,20 +48,24 @@ export default function CustomerDetailPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 grid grid-cols-3 gap-4">
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 min-w-0">
           <div className="card p-5 text-center">
-            <p className="text-3xl font-bold text-indigo-600">{customer.total_purchases}</p>
-            <p className="text-sm text-gray-500 mt-1">Total Orders</p>
+            <p className="text-2xl sm:text-3xl font-bold leading-tight text-indigo-600 tabular-nums [overflow-wrap:anywhere]">{customer.total_purchases}</p>
+            <p className="text-sm text-gray-500 mt-1">Paid Orders</p>
           </div>
           <div className="card p-5 text-center">
-            <p className="text-3xl font-bold text-emerald-600">{formatCurrency(customer.total_amount_spent)}</p>
-            <p className="text-sm text-gray-500 mt-1">Total Spent</p>
+            <p className="text-xl sm:text-2xl font-bold leading-tight text-emerald-600 tabular-nums [overflow-wrap:anywhere]">{formatCurrency(customer.paid_total ?? customer.total_amount_spent)}</p>
+            <p className="text-sm text-gray-500 mt-1">Paid Total</p>
           </div>
           <div className="card p-5 text-center">
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-xl sm:text-2xl font-bold leading-tight text-amber-600 tabular-nums [overflow-wrap:anywhere]">{formatCurrency(customer.outstanding_total || 0)}</p>
+            <p className="text-sm text-gray-500 mt-1">Outstanding ({customer.unpaid_count || 0} bills)</p>
+          </div>
+          <div className="card p-5 text-center">
+            <p className="text-xl sm:text-2xl font-bold leading-tight text-gray-900 tabular-nums [overflow-wrap:anywhere]">
               {customer.total_purchases > 0 ? formatCurrency(customer.total_amount_spent / customer.total_purchases) : '₹0'}
             </p>
-            <p className="text-sm text-gray-500 mt-1">Avg. Order</p>
+            <p className="text-sm text-gray-500 mt-1">Avg. Paid Order</p>
           </div>
         </div>
       </div>
@@ -87,10 +91,10 @@ export default function CustomerDetailPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-500">{formatDateTime(inv.created_at)}</td>
                   <td className="px-4 py-3">{inv.invoice_items?.length || 0} items</td>
-                  <td className="px-4 py-3 font-semibold">{formatCurrency(inv.final_total)}</td>
-                  <td className="px-4 py-3"><span className="badge-blue">{inv.payment_method}</span></td>
+                  <td className="px-4 py-3 font-semibold tabular-nums whitespace-nowrap">{formatCurrency(inv.final_total)}</td>
+                  <td className="px-4 py-3"><span className={inv.status === 'UNPAID' ? 'badge-yellow' : 'badge-blue'}>{inv.status === 'UNPAID' ? 'Unpaid' : inv.payment_method}</span></td>
                   <td className="px-4 py-3">
-                    <span className={inv.status === 'PAID' ? 'badge-green' : 'badge-red'}>{inv.status}</span>
+                    <span className={inv.status === 'PAID' ? 'badge-green' : inv.status === 'UNPAID' ? 'badge-yellow' : 'badge-red'}>{inv.status}</span>
                   </td>
                 </tr>
               ))}

@@ -7,7 +7,7 @@ import { Table, Pagination } from '../../components/ui/Table';
 import { Modal, ConfirmDialog } from '../../components/ui/Modal';
 import { formatCurrency, getStockBadgeClass, getStockLabel, debounce } from '../../utils';
 import type { Product } from '../../types';
-import { ProductUnit } from '../../types';
+import { ProductStatus, ProductUnit } from '../../types';
 import { Plus, Search, Edit, Trash2, TrendingUp, ImagePlus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -15,8 +15,8 @@ const UNITS = Object.values(ProductUnit);
 
 const emptyForm = {
   sku: '', name: '', description: '', brand: '',
-  unit: ProductUnit.PIECE, purchase_price: 0, selling_price: 0,
-  current_stock: 0, min_stock_threshold: 10, image_url: '',
+  unit: ProductUnit.PIECE, purchase_price: '', selling_price: '',
+  current_stock: '0', min_stock_threshold: '10', image_url: '', status: ProductStatus.ACTIVE,
 };
 
 export default function ProductsPage() {
@@ -45,7 +45,13 @@ export default function ProductsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (d: typeof form) => {
-      let finalForm = { ...d };
+      let finalForm = {
+        ...d,
+        purchase_price: Number(d.purchase_price) || 0,
+        selling_price: Number(d.selling_price) || 0,
+        current_stock: Number.parseInt(d.current_stock, 10) || 0,
+        min_stock_threshold: Number.parseInt(d.min_stock_threshold, 10) || 0,
+      };
       if (imageFile) {
         setUploading(true);
         try {
@@ -74,7 +80,7 @@ export default function ProductsPage() {
 
   const openEdit = (p: Product) => {
     setEditProduct(p);
-    setForm({ sku: p.sku, name: p.name, description: p.description || '', brand: p.brand || '', unit: p.unit, purchase_price: p.purchase_price, selling_price: p.selling_price, current_stock: p.current_stock, min_stock_threshold: p.min_stock_threshold, image_url: p.image_url || '' });
+    setForm({ sku: p.sku, name: p.name, description: p.description || '', brand: p.brand || '', unit: p.unit, purchase_price: String(p.purchase_price), selling_price: String(p.selling_price), current_stock: String(p.current_stock), min_stock_threshold: String(p.min_stock_threshold), image_url: p.image_url || '', status: p.status });
     setImageFile(null);
     setImagePreview(p.image_url ? getProductImageUrl(p.image_url) : '');
     setShowForm(true);
@@ -170,10 +176,22 @@ export default function ProductsPage() {
           <Input label="Brand" value={form.brand} onChange={e => setForm(p => ({ ...p, brand: e.target.value }))} />
           <Select label="Unit" value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value as ProductUnit }))}
             options={UNITS.map(u => ({ value: u, label: u }))} />
-          <Input label="Purchase Price (₹)" type="number" value={form.purchase_price} onChange={e => setForm(p => ({ ...p, purchase_price: parseFloat(e.target.value) || 0 }))} />
-          <Input label="Selling Price (₹)" type="number" value={form.selling_price} onChange={e => setForm(p => ({ ...p, selling_price: parseFloat(e.target.value) || 0 }))} />
-          {!editProduct && <Input label="Initial Stock" type="number" value={form.current_stock} onChange={e => setForm(p => ({ ...p, current_stock: parseInt(e.target.value) || 0 }))} />}
-          <Input label="Min Stock Threshold" type="number" value={form.min_stock_threshold} onChange={e => setForm(p => ({ ...p, min_stock_threshold: parseInt(e.target.value) || 0 }))} />
+          <Input label="Purchase Price (₹)" type="text" inputMode="decimal" value={form.purchase_price} onChange={e => setForm(p => ({ ...p, purchase_price: e.target.value }))} />
+          <Input label="Selling Price (₹)" type="text" inputMode="decimal" value={form.selling_price} onChange={e => setForm(p => ({ ...p, selling_price: e.target.value }))} />
+          {!editProduct && <Input label="Initial Stock" type="text" inputMode="numeric" value={form.current_stock} onChange={e => setForm(p => ({ ...p, current_stock: e.target.value }))} />}
+          <Input label="Min Stock Threshold" type="text" inputMode="numeric" value={form.min_stock_threshold} onChange={e => setForm(p => ({ ...p, min_stock_threshold: e.target.value }))} />
+          <div className="col-span-2">
+            <span className="label">Product status</span>
+            <div className="inline-flex w-full sm:w-auto rounded-md border border-gray-300 p-1 bg-gray-50" role="group" aria-label="Product status">
+              {([ProductStatus.ACTIVE, ProductStatus.INACTIVE] as const).map(status => (
+                <button key={status} type="button" aria-pressed={form.status === status}
+                  onClick={() => setForm(p => ({ ...p, status }))}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded text-sm font-semibold transition-colors ${form.status === status ? status === ProductStatus.ACTIVE ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-700 text-white shadow-sm' : 'text-gray-600 hover:bg-white'}`}>
+                  {status === ProductStatus.ACTIVE ? 'Active' : 'Inactive'}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="col-span-2">
             <Input label="Description" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
           </div>

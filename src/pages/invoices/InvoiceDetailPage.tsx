@@ -37,7 +37,10 @@ export default function InvoiceDetailPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{invoice.invoice_number}</h1>
-            <p className="text-gray-500 text-sm">{formatDateTime(invoice.created_at)}</p>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <p className="text-gray-500 text-sm">{formatDateTime(invoice.created_at)}</p>
+              <span className={invoice.status === 'PAID' ? 'badge-green' : invoice.status === 'UNPAID' ? 'badge-yellow' : 'badge-red'}>{invoice.status}</span>
+            </div>
           </div>
         </div>
         <button onClick={() => handlePrint()} className="btn-secondary">

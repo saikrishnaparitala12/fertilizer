@@ -6,4 +6,5 @@ export const invoicesApi = {
   list: (params?: Record<string, unknown>) => api.get('/api/invoices', { params }),
   get: (id: string) => api.get(`/api/invoices/${id}`),
   cancel: (id: string) => api.patch(`/api/invoices/${id}/cancel`),
+  markPaid: (id: string, payment_method: string) => api.patch(`/api/invoices/${id}/pay`, { payment_method }),
 };

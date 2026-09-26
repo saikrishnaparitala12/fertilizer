@@ -1,7 +1,7 @@
 export enum UserRole { ADMIN = 'ADMIN', MANAGER = 'MANAGER', RECEPTIONIST = 'RECEPTIONIST', CASHIER = 'CASHIER' }
 export enum ProductUnit { PIECE = 'piece', KG = 'kg', GRAM = 'gram', LITRE = 'litre', PACKET = 'packet', BOX = 'box', BOTTLE = 'bottle', PAIR = 'pair', SET = 'set' }
 export enum ProductStatus { ACTIVE = 'ACTIVE', INACTIVE = 'INACTIVE' }
-export enum InvoiceStatus { PAID = 'PAID', CANCELLED = 'CANCELLED' }
+export enum InvoiceStatus { PAID = 'PAID', UNPAID = 'UNPAID', CANCELLED = 'CANCELLED' }
 export enum PaymentMethod { CASH = 'CASH', UPI = 'UPI', CARD = 'CARD', OTHER = 'OTHER' }
 export enum InventoryTransactionType { STOCK_IN = 'STOCK_IN', SALE = 'SALE', STOCK_ADJUSTMENT = 'STOCK_ADJUSTMENT', RETURN = 'RETURN', DAMAGED = 'DAMAGED', MANUAL_ADJUSTMENT = 'MANUAL_ADJUSTMENT' }
 
@@ -21,6 +21,7 @@ export interface Customer {
   id: string; name: string; phone: string; email?: string;
   address?: string; gstin?: string; notes?: string;
   total_purchases: number; total_amount_spent: number;
+  paid_total?: number; outstanding_total?: number; unpaid_count?: number;
   created_at: string; updated_at: string;
 }
 

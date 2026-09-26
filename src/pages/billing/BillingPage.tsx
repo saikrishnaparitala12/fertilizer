@@ -8,6 +8,7 @@ import { formatCurrency, debounce } from '../../utils';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import { InvoiceStatus } from '../../types';
 import type { Product, Customer, PaymentMethod } from '../../types';
 import {
   Search, Plus, Minus, Trash2, UserPlus, ShoppingBag,
@@ -27,6 +28,7 @@ export default function BillingPage() {
   const [createdInvoice, setCreatedInvoice] = useState<any>(null);
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', address: '' });
   const [mobileTab, setMobileTab] = useState<'products' | 'cart'>('products');
+  const [paymentStatus, setPaymentStatus] = useState<InvoiceStatus>(InvoiceStatus.PAID);
   const navigate = useNavigate();
 
   const store = useBillingStore();
@@ -62,6 +64,7 @@ export default function BillingPage() {
       setCreatedInvoice(res.data.data);
       setShowInvoiceModal(true);
       store.clearBill();
+      setPaymentStatus(InvoiceStatus.PAID);
       setMobileTab('products');
       toast.success('Invoice created successfully!');
     },
@@ -101,7 +104,8 @@ export default function BillingPage() {
       adjustment: store.adjustmentNum(),
       tax: store.taxNum(),
       custom_final_total: store.customFinalTotalNum(),
-      payment_method: store.paymentMethod,
+      payment_method: paymentStatus === InvoiceStatus.PAID ? store.paymentMethod : 'OTHER',
+      status: paymentStatus,
       notes: store.notes || undefined,
     });
   };
@@ -343,23 +347,35 @@ export default function BillingPage() {
           </div>
 
           {/* Payment Method */}
-          <div className="grid grid-cols-4 gap-1">
-            {(['CASH', 'UPI', 'CARD', 'OTHER'] as PaymentMethod[]).map(method => (
-              <button key={method} onClick={() => store.setPaymentMethod(method)}
-                className={`py-2 rounded-lg text-xs font-semibold border transition-all ${store.paymentMethod === method ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'}`}>
-                {method}
+          <div className="grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-1" role="group" aria-label="Invoice payment status">
+            {([InvoiceStatus.PAID, InvoiceStatus.UNPAID] as const).map(status => (
+              <button key={status} onClick={() => setPaymentStatus(status)} aria-pressed={paymentStatus === status}
+                className={`min-h-10 rounded px-3 py-2 text-sm font-semibold transition-colors ${paymentStatus === status ? status === InvoiceStatus.PAID ? 'bg-emerald-600 text-white shadow-sm' : 'bg-amber-500 text-white shadow-sm' : 'text-gray-600 hover:bg-white'}`}>
+                {status === InvoiceStatus.PAID ? 'Paid now' : 'Unpaid / credit'}
               </button>
             ))}
           </div>
+
+          {paymentStatus === InvoiceStatus.PAID && (
+            <div className="grid grid-cols-4 gap-1">
+              {(['CASH', 'UPI', 'CARD', 'OTHER'] as PaymentMethod[]).map(method => (
+                <button key={method} onClick={() => store.setPaymentMethod(method)} aria-pressed={store.paymentMethod === method}
+                  className={`min-h-9 rounded-md text-xs font-semibold border transition-colors ${store.paymentMethod === method ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'}`}>
+                  {method}
+                </button>
+              ))}
+            </div>
+          )}
 
           <Button variant="primary" className="w-full py-3 text-sm font-semibold"
             loading={createInvoiceMutation.isPending}
             onClick={handleGenerateInvoice}
             icon={<Receipt className="w-4 h-4" />}>
-            Generate Invoice · {formatCurrency(finalTotal)}
+            <span>{paymentStatus === InvoiceStatus.PAID ? 'Create paid invoice' : 'Create unpaid invoice'}</span>
+            <span className="whitespace-nowrap tabular-nums">{formatCurrency(finalTotal)}</span>
           </Button>
 
-          <button onClick={store.clearBill} className="w-full text-xs text-gray-400 hover:text-red-500 py-1">
+          <button onClick={() => { store.clearBill(); setPaymentStatus(InvoiceStatus.PAID); }} className="w-full text-xs text-gray-400 hover:text-red-500 py-1">
             Clear Bill
           </button>
         </div>
@@ -445,6 +461,7 @@ export default function BillingPage() {
             <Button loading={createCustomerMutation.isPending} onClick={() => createCustomerMutation.mutate(newCustomer)}>
               Save Customer
             </Button>
+            Generate paid invoice
           </>
         }>
         <div className="space-y-4">
@@ -489,7 +506,7 @@ export default function BillingPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Payment</span>
-                <span className="font-medium">{createdInvoice.payment_method}</span>
+                <span className="font-medium">{createdInvoice.status === 'UNPAID' ? 'Unpaid' : createdInvoice.payment_method}</span>
               </div>
             </div>
           </div>

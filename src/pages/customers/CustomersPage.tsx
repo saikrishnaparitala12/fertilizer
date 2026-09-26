@@ -39,26 +39,31 @@ export default function CustomersPage() {
   const openNew = () => { setEditCustomer(null); setForm(emptyForm); setShowForm(true); };
 
   const columns = [
-    { key: 'name', header: 'Customer', render: (c: Customer) => (
-      <div>
-        <p className="font-medium text-gray-900">{c.name}</p>
-        <p className="text-xs text-gray-400">{c.phone}</p>
-      </div>
-    )},
+    {
+      key: 'name', header: 'Customer', render: (c: Customer) => (
+        <div>
+          <p className="font-medium text-gray-900">{c.name}</p>
+          <p className="text-xs text-gray-400">{c.phone}</p>
+        </div>
+      )
+    },
     { key: 'email', header: 'Email', render: (c: Customer) => <span className="text-gray-600">{c.email || '—'}</span> },
-    { key: 'total_purchases', header: 'Purchases', render: (c: Customer) => <span className="font-semibold">{c.total_purchases}</span> },
-    { key: 'total_amount_spent', header: 'Total Spent', render: (c: Customer) => <span className="font-semibold text-indigo-600">{formatCurrency(c.total_amount_spent)}</span> },
+    { key: 'total_purchases', header: 'Purchases', render: (c: Customer) => <span className="font-semibold tabular-nums">{c.total_purchases}</span> },
+    { key: 'total_amount_spent', header: 'Paid Total', render: (c: Customer) => <span className="font-semibold text-indigo-600 tabular-nums whitespace-nowrap">{formatCurrency(c.total_amount_spent)}</span> },
+    { key: 'outstanding_total', header: 'Outstanding', render: (c: Customer) => <span className={`font-semibold tabular-nums whitespace-nowrap ${(c.outstanding_total || 0) > 0 ? 'text-amber-700' : 'text-gray-400'}`}>{formatCurrency(c.outstanding_total || 0)}{(c.unpaid_count || 0) > 0 && <span className="ml-1 text-xs">({c.unpaid_count})</span>}</span> },
     { key: 'created_at', header: 'Since', render: (c: Customer) => <span className="text-gray-500">{formatDate(c.created_at)}</span> },
-    { key: 'actions', header: '', render: (c: Customer) => (
-      <div className="flex items-center gap-1">
-        <Link to={`/customers/${c.id}`} className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600">
-          <Eye className="w-4 h-4" />
-        </Link>
-        <button onClick={() => openEdit(c)} className="p-1.5 rounded hover:bg-gray-100 text-gray-600">
-          <Edit className="w-4 h-4" />
-        </button>
-      </div>
-    )},
+    {
+      key: 'actions', header: '', render: (c: Customer) => (
+        <div className="flex items-center gap-1">
+          <Link to={`/customers/${c.id}`} className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600">
+            <Eye className="w-4 h-4" />
+          </Link>
+          <button onClick={() => openEdit(c)} className="p-1.5 rounded hover:bg-gray-100 text-gray-600">
+            <Edit className="w-4 h-4" />
+          </button>
+        </div>
+      )
+    },
   ];
 
   return (

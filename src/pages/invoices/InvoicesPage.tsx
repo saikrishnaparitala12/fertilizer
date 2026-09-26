@@ -4,15 +4,19 @@ import { invoicesApi } from '../../api/invoices';
 import { Table, Pagination } from '../../components/ui/Table';
 import { formatCurrency, formatDateTime } from '../../utils';
 import type { Invoice } from '../../types';
-import { Search, Eye, XCircle } from 'lucide-react';
+import { Search, Eye, XCircle, CircleDollarSign } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { ConfirmDialog } from '../../components/ui/Modal';
+import { ConfirmDialog, Modal } from '../../components/ui/Modal';
+import { Button } from '../../components/ui/Button';
+import { PaymentMethod } from '../../types';
 import toast from 'react-hot-toast';
 
 export default function InvoicesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [cancelInvoice, setCancelInvoice] = useState<Invoice | null>(null);
+  const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -26,33 +30,61 @@ export default function InvoicesPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to cancel'),
   });
 
+  const markPaidMutation = useMutation({
+    mutationFn: () => invoicesApi.markPaid(payInvoice!.id, paymentMethod),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['invoices'] }),
+        qc.invalidateQueries({ queryKey: ['customer-purchases'] }),
+        qc.invalidateQueries({ queryKey: ['customer'] }),
+        qc.invalidateQueries({ queryKey: ['customers'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard-summary'] }),
+        qc.invalidateQueries({ queryKey: ['report-sales'] }),
+      ]);
+      setPayInvoice(null);
+      toast.success('Payment recorded');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to record payment'),
+  });
+
   const columns = [
-    { key: 'invoice_number', header: 'Invoice', render: (i: Invoice) => (
-      <Link to={`/invoices/${i.id}`} className="text-indigo-600 hover:underline font-semibold">{i.invoice_number}</Link>
-    )},
-    { key: 'customer', header: 'Customer', render: (i: Invoice) => (
-      <div>
-        <p className="font-medium">{(i as any).customers?.name}</p>
-        <p className="text-xs text-gray-400">{(i as any).customers?.phone}</p>
-      </div>
-    )},
+    {
+      key: 'invoice_number', header: 'Invoice', render: (i: Invoice) => (
+        <Link to={`/invoices/${i.id}`} className="text-indigo-600 hover:underline font-semibold">{i.invoice_number}</Link>
+      )
+    },
+    {
+      key: 'customer', header: 'Customer', render: (i: Invoice) => (
+        <div>
+          <p className="font-medium">{(i as any).customers?.name}</p>
+          <p className="text-xs text-gray-400">{(i as any).customers?.phone}</p>
+        </div>
+      )
+    },
     { key: 'final_total', header: 'Total', render: (i: Invoice) => <span className="font-bold text-gray-900">{formatCurrency(i.final_total)}</span> },
-    { key: 'payment_method', header: 'Payment', render: (i: Invoice) => <span className="badge-blue">{i.payment_method}</span> },
+    { key: 'payment_method', header: 'Payment', render: (i: Invoice) => <span className={i.status === 'UNPAID' ? 'badge-yellow' : 'badge-blue'}>{i.status === 'UNPAID' ? 'Unpaid' : i.payment_method}</span> },
     { key: 'admin', header: 'By', render: (i: Invoice) => <span className="text-gray-600">{(i as any).admins?.name}</span> },
     { key: 'created_at', header: 'Date', render: (i: Invoice) => <span className="text-gray-500">{formatDateTime(i.created_at)}</span> },
-    { key: 'status', header: 'Status', render: (i: Invoice) => <span className={i.status === 'PAID' ? 'badge-green' : 'badge-red'}>{i.status}</span> },
-    { key: 'actions', header: '', render: (i: Invoice) => (
-      <div className="flex items-center gap-1">
-        <Link to={`/invoices/${i.id}`} className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600">
-          <Eye className="w-4 h-4" />
-        </Link>
-        {i.status === 'PAID' && (
-          <button onClick={() => setCancelInvoice(i)} className="p-1.5 rounded hover:bg-red-50 text-red-500">
-            <XCircle className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-    )},
+    { key: 'status', header: 'Status', render: (i: Invoice) => <span className={i.status === 'PAID' ? 'badge-green' : i.status === 'UNPAID' ? 'badge-yellow' : 'badge-red'}>{i.status}</span> },
+    {
+      key: 'actions', header: '', render: (i: Invoice) => (
+        <div className="flex items-center gap-1">
+          <Link to={`/invoices/${i.id}`} className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600">
+            <Eye className="w-4 h-4" />
+          </Link>
+          {i.status === 'UNPAID' && (
+            <button onClick={() => { setPaymentMethod(PaymentMethod.CASH); setPayInvoice(i); }} className="p-1.5 rounded hover:bg-emerald-50 text-emerald-700" title="Record payment" aria-label={`Record payment for ${i.invoice_number}`}>
+              <CircleDollarSign className="w-4 h-4" />
+            </button>
+          )}
+          {i.status !== 'CANCELLED' && (
+            <button onClick={() => setCancelInvoice(i)} className="p-1.5 rounded hover:bg-red-50 text-red-500">
+              <XCircle className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )
+    },
   ];
 
   return (
@@ -76,6 +108,26 @@ export default function InvoicesPage() {
         loading={cancelMutation.isPending}
         title="Cancel Invoice"
         message={`Cancel invoice ${cancelInvoice?.invoice_number}? Stock will be restored automatically.`} />
+
+      <Modal open={!!payInvoice} onClose={() => setPayInvoice(null)} title="Record payment" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPayInvoice(null)}>Cancel</Button>
+            <Button loading={markPaidMutation.isPending} onClick={() => markPaidMutation.mutate()} icon={<CircleDollarSign className="w-4 h-4" />}>
+              Mark paid
+            </Button>
+          </>
+        }>
+        <div className="space-y-4">
+          <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">
+            {payInvoice?.invoice_number} · {formatCurrency(payInvoice?.final_total || 0)} due
+          </div>
+          <label className="label" htmlFor="payment-method">Payment method</label>
+          <select id="payment-method" className="input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}>
+            {(['CASH', 'UPI', 'CARD', 'OTHER'] as PaymentMethod[]).map(method => <option key={method} value={method}>{method}</option>)}
+          </select>
+        </div>
+      </Modal>
     </div>
   );
 }
